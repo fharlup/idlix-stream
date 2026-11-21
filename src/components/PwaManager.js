@@ -6,7 +6,7 @@ export default function PwaManager() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
-  const [showIosTip, setShowIosTip] = useState(false);
+  const [showTip, setShowTip] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -31,6 +31,7 @@ export default function PwaManager() {
     const onAppInstalled = () => {
       setDeferredPrompt(null);
       setIsStandalone(true);
+      setShowTip(false);
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
@@ -44,19 +45,21 @@ export default function PwaManager() {
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        setDeferredPrompt(null);
+      try {
+        await deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          setDeferredPrompt(null);
+          return;
+        }
+      } catch (_) {
+        // Fallback to manual tip if browser blocks prompt
       }
-      return;
     }
-    if (isIos) {
-      setShowIosTip((prev) => !prev);
-    }
+    setShowTip((prev) => !prev);
   };
 
-  if (isStandalone || (!deferredPrompt && !isIos)) {
+  if (isStandalone) {
     return null;
   }
 
@@ -67,17 +70,30 @@ export default function PwaManager() {
         onClick={handleInstallClick}
         title="Install aplikasi di HP/Desktop"
       >
-        <span>📲</span>
-        <span className="install-pwa-label">Install</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span>Install</span>
       </button>
 
-      {showIosTip && (
-        <div className="ios-install-toast" onClick={() => setShowIosTip(false)}>
+      {showTip && (
+        <div className="ios-install-toast" onClick={() => setShowTip(false)}>
           <div>
-            <strong>Install di iPhone/iPad:</strong> Ketuk ikon <strong>Share (⬆️)</strong> di Safari lalu pilih{' '}
-            <strong>&quot;Add to Home Screen&quot;</strong>.
+            {isIos ? (
+              <>
+                <strong>Install di iPhone/iPad:</strong> Ketuk ikon <strong>Share (⬆️)</strong> di Safari lalu pilih{' '}
+                <strong>&quot;Add to Home Screen&quot;</strong>.
+              </>
+            ) : (
+              <>
+                <strong>Install Aplikasi (PWA):</strong> Jika pop-up otomatis tidak muncul di Brave/Chrome, ketuk ikon{' '}
+                <strong>⋮</strong> di pojok kanan browser lalu pilih <strong>&quot;Add to Home screen&quot; / &quot;Install app&quot;</strong>.
+              </>
+            )}
           </div>
-          <span style={{ fontWeight: 700 }}>✕</span>
+          <span style={{ fontWeight: 700, flexShrink: 0 }}>✕</span>
         </div>
       )}
     </>

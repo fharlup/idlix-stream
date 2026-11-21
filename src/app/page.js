@@ -5,12 +5,54 @@ import PlayerModal from '@/components/PlayerModal';
 import PwaManager from '@/components/PwaManager';
 
 const NAV_TABS = [
-  { id: 'home', label: 'Beranda', icon: '🏠' },
-  { id: 'movies', label: 'Film', icon: '🎬' },
-  { id: 'series', label: 'Serial TV', icon: '📺' },
-  { id: 'trending', label: 'Trending', icon: '🔥' },
-  { id: 'leaderboard', label: 'Peringkat', icon: '🏆' },
+  { id: 'home', label: 'Beranda' },
+  { id: 'movies', label: 'Film' },
+  { id: 'series', label: 'Series' },
+  { id: 'trending', label: 'Trending' },
+  { id: 'leaderboard', label: 'Top' },
 ];
+
+function NavIcon({ id }) {
+  if (id === 'home') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    );
+  }
+  if (id === 'movies') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+        <line x1="7" y1="2" x2="7" y2="22" />
+        <line x1="17" y1="2" x2="17" y2="22" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+      </svg>
+    );
+  }
+  if (id === 'series') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
+        <polyline points="17 2 12 7 7 2" />
+      </svg>
+    );
+  }
+  if (id === 'trending') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+        <polyline points="17 6 23 6 23 12" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
 
 const FILTER_PILLS = [
   { id: 'all', label: '🌟 Semua' },
@@ -340,7 +382,9 @@ export default function HomePage() {
             className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => handleTabClick(tab.id)}
           >
-            <span className="mobile-nav-icon">{tab.icon}</span>
+            <span className="mobile-nav-icon">
+              <NavIcon id={tab.id} />
+            </span>
             <span className="mobile-nav-label">{tab.label}</span>
           </button>
         ))}
