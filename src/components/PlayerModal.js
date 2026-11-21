@@ -30,19 +30,23 @@ export default function PlayerModal({ item, onClose }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [castInfo, setCastInfo] = useState(null);
   const playerBoxRef = useRef(null);
+  const fullscreenBtnRef = useRef(null);
 
   useEffect(() => {
     try {
       const savedSub = localStorage.getItem('idlix_sub_lang');
       if (savedSub) setSubLang(savedSub);
+      const savedServer = parseInt(localStorage.getItem('idlix_preferred_server') || '1', 10);
+      if (savedServer >= 1 && savedServer <= 4) setServer(savedServer);
     } catch (_) {}
   }, []);
 
   useEffect(() => {
     setDetail(item);
-    setServer(1);
     setSeason(1);
     setEpisode(1);
+    // Focus fullscreen button for quick 1-click TV remote action
+    setTimeout(() => fullscreenBtnRef.current?.focus(), 50);
 
     if (item?.imdbId?.startsWith('tt')) {
       fetch(`/api/detail?type=${item.type}&id=${item.imdbId}`)
@@ -64,7 +68,9 @@ export default function PlayerModal({ item, onClose }) {
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' || (e.key === 'Backspace' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName))) {
+        onClose();
+      }
     };
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKeyDown);
@@ -79,6 +85,13 @@ export default function PlayerModal({ item, onClose }) {
   const isSeries = detail.type === 'series';
   const hasImdb = detail.imdbId && detail.imdbId.startsWith('tt');
   const idParam = hasImdb ? detail.imdbId : (detail.tmdbId || detail.slug);
+
+  const handleServerChange = (sId) => {
+    setServer(sId);
+    try {
+      localStorage.setItem('idlix_preferred_server', String(sId));
+    } catch (_) {}
+  };
 
   const handleSubChange = (lang) => {
     setSubLang(lang);
@@ -192,7 +205,7 @@ export default function PlayerModal({ item, onClose }) {
                 <button
                   key={s.id}
                   className={`server-tab-btn ${server === s.id ? 'active' : ''}`}
-                  onClick={() => setServer(s.id)}
+                  onClick={() => handleServerChange(s.id)}
                 >
                   {s.label}
                 </button>
@@ -252,7 +265,6 @@ export default function PlayerModal({ item, onClose }) {
               src={getEmbedUrl()}
               allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
               allowFullScreen
-              referrerPolicy="no-referrer"
             />
           </div>
         </div>
@@ -287,6 +299,7 @@ export default function PlayerModal({ item, onClose }) {
 
               <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                 <button
+                  ref={fullscreenBtnRef}
                   className="btn btn-primary"
                   style={{ fontSize: '0.85rem', padding: '8px 18px' }}
                   onClick={handleFullscreen}
@@ -305,8 +318,18 @@ export default function PlayerModal({ item, onClose }) {
                   style={{ fontSize: '0.85rem', padding: '8px 18px' }}
                   onClick={() => setReloadKey((k) => k + 1)}
                 >
-                  🔄 Muat Ulang Pemutar
+                  🔄 Muat Ulang
                 </button>
+                <a
+                  href={getEmbedUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.85rem', padding: '8px 16px', textDecoration: 'none' }}
+                  title="Buka player di tab baru jika verifikasi CAPTCHA butuh cookie langsung"
+                >
+                  ↗️ Tab Baru
+                </a>
               </div>
 
               {castInfo && (

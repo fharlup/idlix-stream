@@ -293,10 +293,7 @@ export default function HomePage() {
               <p className="hero-overview">{heroItem.overview}</p>
               <div className="hero-actions">
                 <button className="btn btn-primary" onClick={() => setSelectedItem(heroItem)}>
-                  <span>▶</span> Nonton Sekarang
-                </button>
-                <button className="btn btn-secondary" onClick={() => setSelectedItem(heroItem)}>
-                  <span>ℹ️</span> Detail & Episode
+                  <span>▶</span> Putar Sekarang
                 </button>
               </div>
             </div>
@@ -409,7 +406,19 @@ function MediaGrid({ items, onSelect }) {
   return (
     <div className="media-grid">
       {items.map((item) => (
-        <div key={item.slug} className="media-card" onClick={() => onSelect(item)}>
+        <div
+          key={item.slug}
+          className="media-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => onSelect(item)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect(item);
+            }
+          }}
+        >
           <div className="media-poster-wrap">
             {item.poster ? (
               <img className="media-poster" src={item.poster} alt={item.title} loading="lazy" />

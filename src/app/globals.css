@@ -977,3 +977,23 @@ body {
     gap: 12px;
   }
 }
+
+/* ── Smart TV / Remote D-Pad Focus Styles ───────────────────────────────────── */
+.media-card:focus-visible,
+.btn:focus-visible,
+.filter-pill:focus-visible,
+.nav-link:focus-visible,
+.server-tab-btn:focus-visible,
+.season-tab:focus-visible,
+.episode-btn:focus-visible,
+.modal-close-btn:focus-visible,
+.lang-select:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--primary-glow);
+}
+
+.media-card:focus-visible {
+  transform: translateY(-6px) scale(1.03);
+  border-color: var(--primary);
+}
