@@ -1,20 +1,48 @@
 import crypto from 'crypto';
+import { createClient } from 'redis';
 
-function getRedisConfig() {
+let _redisClient = null;
+let _redisConnecting = null;
+
+function getRestConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   return { url: url.replace(/\/$/, ''), token };
 }
 
-export function isCloudDbEnabled() {
-  return Boolean(getRedisConfig());
+function getTcpUrl() {
+  return process.env.REDIS_URL || null;
 }
 
-async function redisCommand(commandArgs) {
-  const cfg = getRedisConfig();
-  if (!cfg) throw new Error('Cloud DB not configured');
+export function isCloudDbEnabled() {
+  return Boolean(getRestConfig() || getTcpUrl());
+}
 
+async function getTcpClient() {
+  const url = getTcpUrl();
+  if (!url) throw new Error('REDIS_URL not configured');
+
+  if (_redisClient?.isOpen) return _redisClient;
+  if (_redisConnecting) return _redisConnecting;
+
+  const client = createClient({ url });
+  client.on('error', (err) => console.error('[redis]', err.message));
+
+  _redisConnecting = client.connect().then(() => {
+    _redisClient = client;
+    _redisConnecting = null;
+    return client;
+  }).catch((err) => {
+    _redisConnecting = null;
+    throw err;
+  });
+
+  return _redisConnecting;
+}
+
+async function restCommand(commandArgs) {
+  const cfg = getRestConfig();
   const res = await fetch(cfg.url, {
     method: 'POST',
     headers: {
@@ -25,16 +53,25 @@ async function redisCommand(commandArgs) {
     cache: 'no-store',
   });
 
-  if (!res.ok) {
-    throw new Error(`Redis HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Redis REST HTTP ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data.result;
 }
 
 export async function getCloudUser(username) {
-  const raw = await redisCommand(['GET', `idlix:user:${username}`]);
+  const key = `idlix:user:${username}`;
+  let raw = null;
+
+  if (getRestConfig()) {
+    raw = await restCommand(['GET', key]);
+  } else if (getTcpUrl()) {
+    const client = await getTcpClient();
+    raw = await client.get(key);
+  } else {
+    throw new Error('Cloud DB not configured');
+  }
+
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -44,7 +81,18 @@ export async function getCloudUser(username) {
 }
 
 export async function saveCloudUser(user) {
-  await redisCommand(['SET', `idlix:user:${user.username}`, JSON.stringify(user)]);
+  const key = `idlix:user:${user.username}`;
+  const value = JSON.stringify(user);
+
+  if (getRestConfig()) {
+    await restCommand(['SET', key, value]);
+  } else if (getTcpUrl()) {
+    const client = await getTcpClient();
+    await client.set(key, value);
+  } else {
+    throw new Error('Cloud DB not configured');
+  }
+
   return user;
 }
 
@@ -58,6 +106,7 @@ export function hashPassword(password, salt) {
 function getSessionSecret() {
   return (
     process.env.AUTH_SECRET ||
+    process.env.REDIS_URL ||
     process.env.KV_REST_API_TOKEN ||
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     'idlix-default-session-secret'
