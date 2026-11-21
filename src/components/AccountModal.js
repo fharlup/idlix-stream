@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import {
   clearWatchHistory,
   exportAccountSyncCode,
@@ -25,6 +26,60 @@ export default function AccountModal({
   const [message, setMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [existingProfiles, setExistingProfiles] = useState([]);
+
+  // QR Login state (for TV)
+  const [qrCode, setQrCode] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [qrStatus, setQrStatus] = useState('idle'); // idle | loading | pending | expired
+
+  const createQrSession = useCallback(async () => {
+    if (!cloudEnabled) return;
+    setQrStatus('loading');
+    setQrDataUrl('');
+    try {
+      const res = await fetch('/api/auth/qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      }).then((r) => r.json());
+
+      if (res.success && res.code) {
+        const pairUrl = `${window.location.origin}/pair?code=${res.code}`;
+        const dataUrl = await QRCode.toDataURL(pairUrl, { width: 220, margin: 2 });
+        setQrCode(res.code);
+        setQrDataUrl(dataUrl);
+        setQrStatus('pending');
+      } else {
+        setQrStatus('expired');
+      }
+    } catch {
+      setQrStatus('expired');
+    }
+  }, [cloudEnabled]);
+
+  useEffect(() => {
+    if (tab === 'qr' && cloudEnabled && !account) {
+      createQrSession();
+    }
+  }, [tab, cloudEnabled, account, createQrSession]);
+
+  useEffect(() => {
+    if (tab !== 'qr' || qrStatus !== 'pending' || !qrCode || account) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/auth/qr?code=${encodeURIComponent(qrCode)}`).then((r) => r.json());
+        if (res.status === 'approved' && res.account) {
+          clearInterval(interval);
+          onAccountChange(res.account);
+          onClose();
+        } else if (res.status === 'expired') {
+          clearInterval(interval);
+          setQrStatus('expired');
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [tab, qrStatus, qrCode, account, onAccountChange, onClose]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -310,7 +365,18 @@ export default function AccountModal({
               >
                 Daftar Baru
               </button>
-              {!cloudEnabled && (
+              {cloudEnabled ? (
+                <button
+                  type="button"
+                  className={`account-tab ${tab === 'qr' ? 'active' : ''}`}
+                  onClick={() => {
+                    setTab('qr');
+                    setMessage(null);
+                  }}
+                >
+                  📺 Login QR
+                </button>
+              ) : (
                 <button
                   type="button"
                   className={`account-tab ${tab === 'sync' ? 'active' : ''}`}
@@ -326,7 +392,54 @@ export default function AccountModal({
 
             {message && <div className={`account-alert ${message.type}`}>{message.text}</div>}
 
-            {tab === 'sync' && !cloudEnabled ? (
+            {tab === 'qr' && cloudEnabled ? (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                {qrStatus === 'loading' ? (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', padding: 30 }}>
+                    Membuat kode QR...
+                  </p>
+                ) : qrStatus === 'expired' ? (
+                  <div style={{ padding: 20 }}>
+                    <p style={{ color: '#fca5a5', fontSize: '0.88rem', marginBottom: 12 }}>
+                      Kode QR sudah kedaluwarsa.
+                    </p>
+                    <button type="button" className="btn btn-primary" onClick={createQrSession}>
+                      🔄 Buat QR Baru
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {qrDataUrl && (
+                      <div
+                        style={{
+                          display: 'inline-block',
+                          padding: 10,
+                          background: '#fff',
+                          borderRadius: 12,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <img src={qrDataUrl} alt="QR Login TV" width={200} height={200} style={{ display: 'block' }} />
+                      </div>
+                    )}
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>
+                      Scan QR ini dengan kamera HP yang sudah login!
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                      Kode TV: <strong style={{ color: 'var(--accent-cyan)' }}>{qrCode}</strong> • Menunggu persetujuan dari HP...
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+                      onClick={createQrSession}
+                    >
+                      🔄 Ganti QR
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : tab === 'sync' && !cloudEnabled ? (
               <form onSubmit={handleImportSync} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <input
                   type="text"

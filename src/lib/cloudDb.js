@@ -96,6 +96,45 @@ export async function saveCloudUser(user) {
   return user;
 }
 
+export async function setTempValue(key, obj, ttlSeconds = 300) {
+  const value = JSON.stringify(obj);
+  if (getRestConfig()) {
+    await restCommand(['SET', key, value, 'EX', ttlSeconds]);
+  } else if (getTcpUrl()) {
+    const client = await getTcpClient();
+    await client.set(key, value, { EX: ttlSeconds });
+  } else {
+    throw new Error('Cloud DB not configured');
+  }
+}
+
+export async function getTempValue(key) {
+  let raw = null;
+  if (getRestConfig()) {
+    raw = await restCommand(['GET', key]);
+  } else if (getTcpUrl()) {
+    const client = await getTcpClient();
+    raw = await client.get(key);
+  } else {
+    throw new Error('Cloud DB not configured');
+  }
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteTempValue(key) {
+  if (getRestConfig()) {
+    await restCommand(['DEL', key]);
+  } else if (getTcpUrl()) {
+    const client = await getTcpClient();
+    await client.del(key);
+  }
+}
+
 export function hashPassword(password, salt) {
   return crypto
     .createHash('sha256')
