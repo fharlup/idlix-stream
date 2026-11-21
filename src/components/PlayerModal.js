@@ -20,11 +20,17 @@ const DUB_OPTIONS = [
   { code: 'ko', label: '🇰🇷 Dub Korea (jika tersedia)' },
 ];
 
-export default function PlayerModal({ item, onClose }) {
+export default function PlayerModal({
+  item,
+  onClose,
+  onTrackWatch,
+  onToggleSave,
+  isSaved = false,
+}) {
   const [detail, setDetail] = useState(item);
   const [server, setServer] = useState(1);
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
+  const [season, setSeason] = useState(item?.season || 1);
+  const [episode, setEpisode] = useState(item?.episode || 1);
   const [subLang, setSubLang] = useState('id');
   const [dubLang, setDubLang] = useState('original');
   const [reloadKey, setReloadKey] = useState(0);
@@ -42,9 +48,12 @@ export default function PlayerModal({ item, onClose }) {
   }, []);
 
   useEffect(() => {
+    const startSeason = item?.season || 1;
+    const startEpisode = item?.episode || 1;
     setDetail(item);
-    setSeason(1);
-    setEpisode(1);
+    setSeason(startSeason);
+    setEpisode(startEpisode);
+    onTrackWatch?.(item, startSeason, startEpisode);
     // Focus fullscreen button for quick 1-click TV remote action
     setTimeout(() => fullscreenBtnRef.current?.focus(), 50);
 
@@ -54,7 +63,7 @@ export default function PlayerModal({ item, onClose }) {
         .then((res) => {
           if (res.success && res.data) {
             setDetail((prev) => ({ ...prev, ...res.data }));
-            if (res.data.seasons?.length) {
+            if (!item?.season && res.data.seasons?.length) {
               setSeason(res.data.seasons[0].seasonNumber);
               if (res.data.seasons[0].episodes?.length) {
                 setEpisode(res.data.seasons[0].episodes[0].episodeNumber);
@@ -320,6 +329,18 @@ export default function PlayerModal({ item, onClose }) {
                 >
                   🔄 Muat Ulang
                 </button>
+                <button
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '8px 16px',
+                    borderColor: isSaved ? 'rgba(229, 9, 20, 0.6)' : undefined,
+                    color: isSaved ? '#fda4af' : undefined,
+                  }}
+                  onClick={() => onToggleSave?.(detail)}
+                >
+                  {isSaved ? '❤️ Tersimpan' : '🔖 Simpan'}
+                </button>
                 <a
                   href={getEmbedUrl()}
                   target="_blank"
@@ -372,8 +393,10 @@ export default function PlayerModal({ item, onClose }) {
                     key={s.seasonNumber}
                     className={`season-tab ${season === s.seasonNumber ? 'active' : ''}`}
                     onClick={() => {
+                      const nextEp = s.episodes?.[0]?.episodeNumber || 1;
                       setSeason(s.seasonNumber);
-                      if (s.episodes?.length) setEpisode(s.episodes[0].episodeNumber);
+                      setEpisode(nextEp);
+                      onTrackWatch?.(detail, s.seasonNumber, nextEp);
                     }}
                   >
                     {s.name}
@@ -386,7 +409,10 @@ export default function PlayerModal({ item, onClose }) {
                     key={ep.episodeNumber}
                     className={`episode-btn ${episode === ep.episodeNumber ? 'active' : ''}`}
                     title={ep.title}
-                    onClick={() => setEpisode(ep.episodeNumber)}
+                    onClick={() => {
+                      setEpisode(ep.episodeNumber);
+                      onTrackWatch?.(detail, season, ep.episodeNumber);
+                    }}
                   >
                     Eps {ep.episodeNumber}
                   </button>

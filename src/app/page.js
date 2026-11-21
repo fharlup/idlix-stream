@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import AccountModal from '@/components/AccountModal';
 import PlayerModal from '@/components/PlayerModal';
 import PwaManager from '@/components/PwaManager';
+import {
+  getCurrentAccount,
+  recordWatchHistory,
+  removeWatchHistoryItem,
+  toggleWatchlistItem,
+} from '@/lib/accountStore';
 
 const NAV_TABS = [
   { id: 'home', label: 'Beranda' },
   { id: 'movies', label: 'Film' },
   { id: 'series', label: 'Series' },
   { id: 'trending', label: 'Trending' },
-  { id: 'leaderboard', label: 'Top' },
+  { id: 'history', label: 'Riwayat' },
 ];
 
 function NavIcon({ id }) {
@@ -49,7 +56,8 @@ function NavIcon({ id }) {
   }
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -83,7 +91,28 @@ export default function HomePage() {
   const [gridItems, setGridItems] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // Load initial homepage catalog
+  // Account & Cloud Sync state
+  const [account, setAccount] = useState(null);
+  const [cloudEnabled, setCloudEnabled] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.cloudEnabled) {
+          setCloudEnabled(true);
+          setAccount(res.account || null);
+        } else {
+          setCloudEnabled(false);
+          setAccount(getCurrentAccount());
+        }
+      })
+      .catch(() => {
+        setAccount(getCurrentAccount());
+      });
+  }, []);
+
   useEffect(() => {
     fetch('/api/catalog?mode=home')
       .then((r) => r.json())
@@ -97,7 +126,6 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Debounced search
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
@@ -126,12 +154,75 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [searchQuery, activeTab, activeFilter]);
 
+  const handleTrackWatch = useCallback(
+    async (item, season = 1, episode = 1) => {
+      if (!account || !item?.slug) return;
+      if (cloudEnabled) {
+        try {
+          const res = await fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'track', item, season, episode }),
+          }).then((r) => r.json());
+          if (res.success && res.account) setAccount(res.account);
+        } catch {}
+      } else {
+        const updated = recordWatchHistory(item, season, episode);
+        if (updated) setAccount({ ...updated });
+      }
+    },
+    [account, cloudEnabled]
+  );
+
+  const handleToggleSave = useCallback(
+    async (item) => {
+      if (!account) {
+        setShowAccountModal(true);
+        return;
+      }
+      if (cloudEnabled) {
+        try {
+          const res = await fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle_watchlist', item }),
+          }).then((r) => r.json());
+          if (res.success && res.account) setAccount(res.account);
+        } catch {}
+      } else {
+        const updated = toggleWatchlistItem(item);
+        if (updated) setAccount({ ...updated });
+      }
+    },
+    [account, cloudEnabled]
+  );
+
+  const handleRemoveHistory = async (slug) => {
+    if (!account) return;
+    if (cloudEnabled) {
+      const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', slug }),
+      }).then((r) => r.json());
+      if (res.success && res.account) setAccount(res.account);
+    } else {
+      const updated = removeWatchHistoryItem(slug);
+      if (updated) setAccount({ ...updated });
+    }
+  };
+
   const handleTabClick = async (tabId) => {
     setActiveTab(tabId);
     setActiveFilter('all');
     setSearchQuery('');
 
     if (tabId === 'home') {
+      setGridItems(null);
+      return;
+    }
+
+    if (tabId === 'history') {
       setGridItems(null);
       return;
     }
@@ -156,13 +247,6 @@ export default function HomePage() {
         setGridTitle('🔥 Sedang Trending');
         const res = await fetch('/api/catalog?mode=trending').then((r) => r.json());
         setGridItems(res.data || []);
-      } else if (tabId === 'leaderboard') {
-        setGridTitle('🏆 Peringkat Rating Tertinggi');
-        const all = [...Object.values(sections).flat(), ...extraMovies];
-        const map = new Map();
-        all.forEach((item) => item?.slug && !map.has(item.slug) && map.set(item.slug, item));
-        const sorted = Array.from(map.values()).sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        setGridItems(sorted);
       }
     } finally {
       setLoading(false);
@@ -207,13 +291,15 @@ export default function HomePage() {
 
   const heroItem = featured[0];
   const showHero = !gridItems && activeTab === 'home' && !searchQuery;
+  const watchedSlugs = new Set((account?.history || []).map((h) => h.slug));
+  const isSelectedSaved = Boolean(selectedItem && (account?.watchlist || []).some((w) => w.slug === selectedItem.slug));
 
   return (
     <>
       {/* Header */}
       <header className="header">
         <div className="header-inner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
             <div className="logo-group" onClick={() => handleTabClick('home')}>
               <div className="logo-badge">IDLIX</div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -246,7 +332,7 @@ export default function HomePage() {
               </svg>
               <input
                 type="text"
-                placeholder="Cari judul film, series..."
+                placeholder="Cari film..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -265,10 +351,25 @@ export default function HomePage() {
 
             <PwaManager />
 
-            <div className="status-indicator">
-              <span className="status-dot" />
-              <span className="status-label">Online</span>
-            </div>
+            <button
+              className="account-header-btn"
+              onClick={() => setShowAccountModal(true)}
+              title="Akun & Riwayat Tontonan"
+            >
+              {account ? (
+                <>
+                  <span className="account-avatar-sm" style={{ background: account.avatarColor || '#e50914' }}>
+                    {(account.displayName || account.username).charAt(0).toUpperCase()}
+                  </span>
+                  <span className="account-name-label">{account.displayName || account.username}</span>
+                </>
+              ) : (
+                <>
+                  <span>👤</span>
+                  <span className="account-name-label">Masuk</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -302,20 +403,68 @@ export default function HomePage() {
       )}
 
       {/* Main Content */}
-      <main className="main-content" style={{ paddingTop: showHero ? 32 : 96 }}>
-        <div className="filter-bar">
-          {FILTER_PILLS.map((pill) => (
-            <button
-              key={pill.id}
-              className={`filter-pill ${activeFilter === pill.id ? 'active' : ''}`}
-              onClick={() => handleFilterClick(pill.id)}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
+      <main className="main-content" style={{ paddingTop: showHero ? 32 : 84 }}>
+        {activeTab !== 'history' && (
+          <div className="filter-bar">
+            {FILTER_PILLS.map((pill) => (
+              <button
+                key={pill.id}
+                className={`filter-pill ${activeFilter === pill.id ? 'active' : ''}`}
+                onClick={() => handleFilterClick(pill.id)}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {loading ? (
+        {activeTab === 'history' ? (
+          <section>
+            {!account ? (
+              <div className="history-empty-box">
+                <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>👤</div>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>
+                  Masuk untuk Melacak Tontonan Anda
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 18 }}>
+                  Buat akun gratis untuk menyimpan riwayat film, episode terakhir yang ditonton, dan daftar simpanan.
+                </p>
+                <button className="btn btn-primary" onClick={() => setShowAccountModal(true)}>
+                  🚀 Masuk / Daftar Akun
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="section-header" style={{ marginTop: 8 }}>
+                  <h2 className="section-title">🕒 Riwayat Tontonan ({(account.history || []).length})</h2>
+                </div>
+                {account.history?.length ? (
+                  <MediaGrid
+                    items={account.history}
+                    watchedSlugs={watchedSlugs}
+                    onSelect={setSelectedItem}
+                    onRemove={handleRemoveHistory}
+                  />
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', padding: '16px 0' }}>
+                    Belum ada film atau serial yang ditonton.
+                  </p>
+                )}
+
+                <div className="section-header" style={{ marginTop: 40 }}>
+                  <h2 className="section-title">❤️ Daftar Tersimpan ({(account.watchlist || []).length})</h2>
+                </div>
+                {account.watchlist?.length ? (
+                  <MediaGrid items={account.watchlist} watchedSlugs={watchedSlugs} onSelect={setSelectedItem} />
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', padding: '16px 0' }}>
+                    Belum ada film yang disimpan. Tekan tombol 🔖 Simpan pada player untuk menambahkan.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        ) : loading ? (
           <div className="media-grid">
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="skeleton" style={{ paddingTop: '148%' }} />
@@ -326,10 +475,25 @@ export default function HomePage() {
             <div className="section-header" style={{ marginTop: 12 }}>
               <h2 className="section-title">{gridTitle}</h2>
             </div>
-            <MediaGrid items={gridItems} onSelect={setSelectedItem} />
+            <MediaGrid items={gridItems} watchedSlugs={watchedSlugs} onSelect={setSelectedItem} />
           </section>
         ) : (
           <>
+            {account?.history?.length > 0 && (
+              <section className="content-section">
+                <div className="section-header">
+                  <div className="section-title-wrap">
+                    <h2 className="section-title">🕒 Lanjutkan Menonton</h2>
+                  </div>
+                </div>
+                <MediaGrid
+                  items={account.history.slice(0, 12)}
+                  watchedSlugs={watchedSlugs}
+                  onSelect={setSelectedItem}
+                />
+              </section>
+            )}
+
             {Object.entries(sections).map(([title, items]) => (
               <section key={title} className="content-section">
                 <div className="section-header">
@@ -340,7 +504,7 @@ export default function HomePage() {
                     </span>
                   </div>
                 </div>
-                <MediaGrid items={items.slice(0, 24)} onSelect={setSelectedItem} />
+                <MediaGrid items={items.slice(0, 24)} watchedSlugs={watchedSlugs} onSelect={setSelectedItem} />
               </section>
             ))}
 
@@ -349,7 +513,7 @@ export default function HomePage() {
                 <div className="section-header">
                   <h2 className="section-title">🎞️ Eksplorasi Film Lainnya ({extraMovies.length})</h2>
                 </div>
-                <MediaGrid items={extraMovies} onSelect={setSelectedItem} />
+                <MediaGrid items={extraMovies} watchedSlugs={watchedSlugs} onSelect={setSelectedItem} />
               </section>
             )}
 
@@ -388,13 +552,29 @@ export default function HomePage() {
       </nav>
 
       {selectedItem && (
-        <PlayerModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+        <PlayerModal
+          item={selectedItem}
+          isSaved={isSelectedSaved}
+          onTrackWatch={handleTrackWatch}
+          onToggleSave={handleToggleSave}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+
+      {showAccountModal && (
+        <AccountModal
+          account={account}
+          cloudEnabled={cloudEnabled}
+          onAccountChange={setAccount}
+          onClose={() => setShowAccountModal(false)}
+          onViewHistory={() => handleTabClick('history')}
+        />
       )}
     </>
   );
 }
 
-function MediaGrid({ items, onSelect }) {
+function MediaGrid({ items, watchedSlugs, onSelect, onRemove }) {
   if (!items || !items.length) {
     return (
       <p style={{ color: 'var(--text-muted)', padding: '24px 0' }}>
@@ -405,48 +585,72 @@ function MediaGrid({ items, onSelect }) {
 
   return (
     <div className="media-grid">
-      {items.map((item) => (
-        <div
-          key={item.slug}
-          className="media-card"
-          role="button"
-          tabIndex={0}
-          onClick={() => onSelect(item)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onSelect(item);
-            }
-          }}
-        >
-          <div className="media-poster-wrap">
-            {item.poster ? (
-              <img className="media-poster" src={item.poster} alt={item.title} loading="lazy" />
-            ) : (
-              <div className="poster-fallback">
-                <span>🎬</span>
-                <strong>{item.title}</strong>
+      {items.map((item) => {
+        const isWatched = watchedSlugs?.has(item.slug);
+        const epLabel = item.type === 'series' && item.season && item.episode ? `S${item.season} E${item.episode}` : null;
+
+        return (
+          <div
+            key={item.slug}
+            className="media-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(item)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(item);
+              }
+            }}
+          >
+            <div className="media-poster-wrap">
+              {item.poster ? (
+                <img className="media-poster" src={item.poster} alt={item.title} loading="lazy" />
+              ) : (
+                <div className="poster-fallback">
+                  <span>🎬</span>
+                  <strong>{item.title}</strong>
+                </div>
+              )}
+              <div className="media-badges">
+                {epLabel ? (
+                  <span className="badge badge-featured">{epLabel}</span>
+                ) : isWatched ? (
+                  <span className="badge badge-watched">✓ Ditonton</span>
+                ) : (
+                  <span className="badge badge-quality">{item.quality || 'HD'}</span>
+                )}
+                {item.rating && <span className="badge badge-rating">⭐ {item.rating}</span>}
               </div>
-            )}
-            <div className="media-badges">
-              <span className="badge badge-quality">{item.quality || 'HD'}</span>
-              {item.rating && <span className="badge badge-rating">⭐ {item.rating}</span>}
+              {onRemove && (
+                <button
+                  type="button"
+                  className="card-remove-btn"
+                  title="Hapus dari riwayat"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.slug);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+              <div className="card-play-overlay">
+                <div className="card-play-btn">▶</div>
+              </div>
             </div>
-            <div className="card-play-overlay">
-              <div className="card-play-btn">▶</div>
+            <div className="media-info">
+              <h3 className="media-title" title={item.title}>
+                {item.title}
+              </h3>
+              <div className="media-meta">
+                <span>{item.type === 'series' ? 'Serial TV' : 'Film'}</span>
+                <span>{item.year || ''}</span>
+              </div>
             </div>
           </div>
-          <div className="media-info">
-            <h3 className="media-title" title={item.title}>
-              {item.title}
-            </h3>
-            <div className="media-meta">
-              <span>{item.type === 'series' ? 'Serial TV' : 'Film'}</span>
-              <span>{item.year || ''}</span>
-            </div>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
