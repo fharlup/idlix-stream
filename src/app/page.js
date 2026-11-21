@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import PlayerModal from '@/components/PlayerModal';
+import PwaManager from '@/components/PwaManager';
 
 const NAV_TABS = [
-  { id: 'home', label: 'Beranda' },
-  { id: 'movies', label: 'Film' },
-  { id: 'series', label: 'Serial TV' },
-  { id: 'trending', label: 'Trending' },
-  { id: 'leaderboard', label: 'Peringkat' },
+  { id: 'home', label: 'Beranda', icon: '🏠' },
+  { id: 'movies', label: 'Film', icon: '🎬' },
+  { id: 'series', label: 'Serial TV', icon: '📺' },
+  { id: 'trending', label: 'Trending', icon: '🔥' },
+  { id: 'leaderboard', label: 'Peringkat', icon: '🏆' },
 ];
 
 const FILTER_PILLS = [
@@ -220,9 +221,11 @@ export default function HomePage() {
               )}
             </div>
 
+            <PwaManager />
+
             <div className="status-indicator">
               <span className="status-dot" />
-              <span>Online</span>
+              <span className="status-label">Online</span>
             </div>
           </div>
         </div>
@@ -328,6 +331,20 @@ export default function HomePage() {
       <footer className="footer">
         <p>© 2026 IDLIX Stream — Powered by Next.js App Router (Vercel Ready).</p>
       </footer>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="mobile-bottom-nav" aria-label="Navigasi Mobile">
+        {NAV_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => handleTabClick(tab.id)}
+          >
+            <span className="mobile-nav-icon">{tab.icon}</span>
+            <span className="mobile-nav-label">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {selectedItem && (
         <PlayerModal item={selectedItem} onClose={() => setSelectedItem(null)} />
