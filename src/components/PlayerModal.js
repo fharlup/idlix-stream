@@ -25,6 +25,8 @@ export default function PlayerModal({
   onClose,
   onTrackWatch,
   onToggleSave,
+  onUpdateProgress,
+  historyEntry = null,
   isSaved = false,
 }) {
   const [detail, setDetail] = useState(item);
@@ -35,8 +37,14 @@ export default function PlayerModal({
   const [dubLang, setDubLang] = useState('original');
   const [reloadKey, setReloadKey] = useState(0);
   const [castInfo, setCastInfo] = useState(null);
+  const [progressInput, setProgressInput] = useState(historyEntry?.progressTime || '');
+  const [progressSavedToast, setProgressSavedToast] = useState(false);
   const playerBoxRef = useRef(null);
   const fullscreenBtnRef = useRef(null);
+
+  useEffect(() => {
+    setProgressInput(historyEntry?.progressTime || '');
+  }, [historyEntry?.progressTime, item?.slug]);
 
   useEffect(() => {
     try {
@@ -352,6 +360,61 @@ export default function PlayerModal({
                   ↗️ Tab Baru
                 </a>
               </div>
+
+              {/* Watch Timestamp & Last Minute Marker */}
+              {onUpdateProgress && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onUpdateProgress(detail.slug, progressInput);
+                    setProgressSavedToast(true);
+                    setTimeout(() => setProgressSavedToast(false), 2000);
+                  }}
+                  style={{
+                    marginTop: 14,
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {historyEntry?.watchedAt ? (
+                      <>
+                        🕒 Terakhir ditonton:{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>
+                          {new Date(historyEntry.watchedAt).toLocaleString('id-ID', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </strong>
+                      </>
+                    ) : (
+                      <span>⏱️ Tandai menit terakhir ditonton:</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="text"
+                      className="account-input"
+                      style={{ width: 110, padding: '5px 8px', fontSize: '0.78rem' }}
+                      placeholder="mis. 42:15"
+                      value={progressInput}
+                      onChange={(e) => setProgressInput(e.target.value)}
+                    />
+                    <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '5px 10px' }}>
+                      {progressSavedToast ? '✓ Tersimpan' : 'Simpan Menit'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {castInfo && (
                 <div

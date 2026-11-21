@@ -83,7 +83,7 @@ export function logoutAccount() {
   localStorage.removeItem(CURRENT_USER_KEY);
 }
 
-export function recordWatchHistory(item, season = 1, episode = 1) {
+export function recordWatchHistory(item, season = 1, episode = 1, progressTime) {
   const username = getCurrentUsername();
   if (!username || !item?.slug) return null;
 
@@ -91,6 +91,7 @@ export function recordWatchHistory(item, season = 1, episode = 1) {
   const account = map[username];
   if (!account) return null;
 
+  const existing = (account.history || []).find((h) => h.slug === item.slug);
   const entry = {
     slug: item.slug,
     imdbId: item.imdbId || item.slug,
@@ -106,11 +107,27 @@ export function recordWatchHistory(item, season = 1, episode = 1) {
     genres: item.genres || [],
     season: item.type === 'series' ? season : null,
     episode: item.type === 'series' ? episode : null,
+    progressTime: progressTime !== undefined ? progressTime : (existing?.progressTime || ''),
     watchedAt: Date.now(),
   };
 
   const filtered = (account.history || []).filter((h) => h.slug !== item.slug);
   account.history = [entry, ...filtered].slice(0, 100);
+  map[username] = account;
+  saveAccountsMap(map);
+  return account;
+}
+
+export function updateWatchProgress(slug, progressTime) {
+  const username = getCurrentUsername();
+  if (!username || !slug) return null;
+  const map = getAccountsMap();
+  const account = map[username];
+  if (!account) return null;
+
+  account.history = (account.history || []).map((h) =>
+    h.slug === slug ? { ...h, progressTime: String(progressTime || '').trim(), watchedAt: Date.now() } : h
+  );
   map[username] = account;
   saveAccountsMap(map);
   return account;

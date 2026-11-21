@@ -9,7 +9,23 @@ import {
   recordWatchHistory,
   removeWatchHistoryItem,
   toggleWatchlistItem,
+  updateWatchProgress,
 } from '@/lib/accountStore';
+
+function formatWatchTimestamp(ts) {
+  if (!ts) return '';
+  const diffMin = Math.floor((Date.now() - ts) / 60000);
+  if (diffMin < 1) return 'Baru saja';
+  if (diffMin < 60) return `${diffMin} mnt lalu`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} jam lalu`;
+  return new Date(ts).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 const NAV_TABS = [
   { id: 'home', label: 'Beranda' },
@@ -211,6 +227,26 @@ export default function HomePage() {
       if (updated) setAccount({ ...updated });
     }
   };
+
+  const handleUpdateProgress = useCallback(
+    async (slug, progressTime) => {
+      if (!account || !slug) return;
+      if (cloudEnabled) {
+        try {
+          const res = await fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_progress', slug, progressTime }),
+          }).then((r) => r.json());
+          if (res.success && res.account) setAccount(res.account);
+        } catch {}
+      } else {
+        const updated = updateWatchProgress(slug, progressTime);
+        if (updated) setAccount({ ...updated });
+      }
+    },
+    [account, cloudEnabled]
+  );
 
   const handleTabClick = async (tabId) => {
     setActiveTab(tabId);
@@ -555,8 +591,10 @@ export default function HomePage() {
         <PlayerModal
           item={selectedItem}
           isSaved={isSelectedSaved}
+          historyEntry={(account?.history || []).find((h) => h.slug === selectedItem.slug) || null}
           onTrackWatch={handleTrackWatch}
           onToggleSave={handleToggleSave}
+          onUpdateProgress={account ? handleUpdateProgress : null}
           onClose={() => setSelectedItem(null)}
         />
       )}
@@ -644,8 +682,10 @@ function MediaGrid({ items, watchedSlugs, onSelect, onRemove }) {
                 {item.title}
               </h3>
               <div className="media-meta">
-                <span>{item.type === 'series' ? 'Serial TV' : 'Film'}</span>
-                <span>{item.year || ''}</span>
+                <span>
+                  {item.progressTime ? `⏱️ ${item.progressTime}` : (item.type === 'series' ? 'Serial TV' : 'Film')}
+                </span>
+                <span>{item.watchedAt ? formatWatchTimestamp(item.watchedAt) : (item.year || '')}</span>
               </div>
             </div>
           </div>

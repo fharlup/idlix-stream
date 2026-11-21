@@ -30,9 +30,10 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { action, item, season, episode, slug } = body || {};
+    const { action, item, season, episode, slug, progressTime } = body || {};
 
     if (action === 'track' && item?.slug) {
+      const existing = (user.history || []).find((h) => h.slug === item.slug);
       const entry = {
         slug: item.slug,
         imdbId: item.imdbId || item.slug,
@@ -48,9 +49,18 @@ export async function POST(request) {
         genres: item.genres || [],
         season: item.type === 'series' ? (season || 1) : null,
         episode: item.type === 'series' ? (episode || 1) : null,
+        progressTime: progressTime !== undefined ? progressTime : (existing?.progressTime || ''),
         watchedAt: Date.now(),
       };
       user.history = [entry, ...(user.history || []).filter((h) => h.slug !== item.slug)].slice(0, 100);
+      await saveCloudUser(user);
+      return NextResponse.json({ success: true, account: sanitizeUser(user) });
+    }
+
+    if (action === 'update_progress' && slug) {
+      user.history = (user.history || []).map((h) =>
+        h.slug === slug ? { ...h, progressTime: String(progressTime || '').trim(), watchedAt: Date.now() } : h
+      );
       await saveCloudUser(user);
       return NextResponse.json({ success: true, account: sanitizeUser(user) });
     }
