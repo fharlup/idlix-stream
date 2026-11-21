@@ -1,6 +1,11 @@
 node_modules
+.next
+out
+.vercel
+.env
+.env*.local
 json.sqlite
 .vscode
-Procfile
-*.swp
 coverage/
+
+.vercel
