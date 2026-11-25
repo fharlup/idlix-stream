@@ -51,7 +51,7 @@ export default function PlayerModal({
       const savedSub = localStorage.getItem('idlix_sub_lang');
       if (savedSub) setSubLang(savedSub);
       const savedServer = parseInt(localStorage.getItem('idlix_preferred_server') || '1', 10);
-      if (savedServer >= 1 && savedServer <= 4) setServer(savedServer);
+      if (savedServer >= 1 && savedServer <= 5) setServer(savedServer);
     } catch (_) {}
   }, []);
 
@@ -122,19 +122,23 @@ export default function PlayerModal({
 
     if (server === 1) {
       return isSeries
-        ? `https://vidsrc.me/embed/tv?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}&season=${season}&episode=${episode}${subQuery}`
-        : `https://vidsrc.me/embed/movie?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}${subQuery}`;
+        ? `https://vidsrc.sh/embed/tv?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}&season=${season}&episode=${episode}${subQuery}`
+        : `https://vidsrc.sh/embed/movie?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}${subQuery}`;
     }
     if (server === 2) {
-      const prefix = hasImdb ? 'imdb' : 'tmdb';
       return isSeries
-        ? `https://autoembed.co/tv/${prefix}/${idParam}-${season}-${episode}`
-        : `https://autoembed.co/movie/${prefix}/${idParam}`;
+        ? `https://multiembed.mov/?video_id=${idParam}&s=${season}&e=${episode}`
+        : `https://multiembed.mov/?video_id=${idParam}`;
     }
     if (server === 3) {
       return isSeries
         ? `https://www.2embed.cc/embedtv/${idParam}&s=${season}&e=${episode}`
         : `https://www.2embed.cc/embed/${idParam}`;
+    }
+    if (server === 4) {
+      return isSeries
+        ? `https://vidlink.pro/tv/${idParam}/${season}/${episode}`
+        : `https://vidlink.pro/movie/${idParam}`;
     }
     if (detail.trailer) {
       const base = detail.trailer.includes('embed')
@@ -214,10 +218,11 @@ export default function PlayerModal({
                 SERVER:
               </span>
               {[
-                { id: 1, label: '⚡ Server 1 (VidSrc.me)' },
-                { id: 2, label: '🌐 Server 2 (AutoEmbed)' },
+                { id: 1, label: '⚡ Server 1 (VidSrc.sh)' },
+                { id: 2, label: '🌐 Server 2 (MultiEmbed)' },
                 { id: 3, label: '🚀 Server 3 (2Embed)' },
-                { id: 4, label: '🎬 Trailer' },
+                { id: 4, label: '✨ Server 4 (VidLink)' },
+                { id: 5, label: '🎬 Trailer' },
               ].map((s) => (
                 <button
                   key={s.id}
