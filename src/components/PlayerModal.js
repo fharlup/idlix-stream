@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const SUBTITLE_OPTIONS = [
   { code: 'id', label: '🇮🇩 Indonesia (id)' },
@@ -39,8 +40,22 @@ export default function PlayerModal({
   const [castInfo, setCastInfo] = useState(null);
   const [progressInput, setProgressInput] = useState(historyEntry?.progressTime || '');
   const [progressSavedToast, setProgressSavedToast] = useState(false);
+  const [isMiniPiP, setIsMiniPiP] = useState(false);
+  const [pipWindow, setPipWindow] = useState(null);
+  const [pipNotice, setPipNotice] = useState(null);
+  const pipWindowRef = useRef(null);
   const playerBoxRef = useRef(null);
   const fullscreenBtnRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pipWindowRef.current) {
+        try {
+          pipWindowRef.current.close();
+        } catch (_) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setProgressInput(historyEntry?.progressTime || '');
@@ -51,7 +66,7 @@ export default function PlayerModal({
       const savedSub = localStorage.getItem('idlix_sub_lang');
       if (savedSub) setSubLang(savedSub);
       const savedServer = parseInt(localStorage.getItem('idlix_preferred_server') || '1', 10);
-      if (savedServer >= 1 && savedServer <= 5) setServer(savedServer);
+      if (savedServer >= 1 && savedServer <= 6) setServer(savedServer);
     } catch (_) {}
   }, []);
 
@@ -85,17 +100,25 @@ export default function PlayerModal({
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'Escape' || (e.key === 'Backspace' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName))) {
+      if (
+        (e.key === 'Escape' ||
+          (e.key === 'Backspace' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName))) &&
+        !isMiniPiP
+      ) {
         onClose();
       }
     };
-    document.body.style.overflow = 'hidden';
+    if (!isMiniPiP) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, isMiniPiP]);
 
   if (!item) return null;
 
@@ -122,23 +145,28 @@ export default function PlayerModal({
 
     if (server === 1) {
       return isSeries
+        ? `https://nontongo.win/embed/tv/${idParam}/${season}/${episode}`
+        : `https://nontongo.win/embed/movie/${idParam}`;
+    }
+    if (server === 2) {
+      return isSeries
+        ? `https://vidfast.vc/tv/${idParam}/${season}/${episode}`
+        : `https://vidfast.vc/movie/${idParam}`;
+    }
+    if (server === 3) {
+      return isSeries
         ? `https://vidsrc.sh/embed/tv?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}&season=${season}&episode=${episode}${subQuery}`
         : `https://vidsrc.sh/embed/movie?${hasImdb ? 'imdb' : 'tmdb'}=${idParam}${subQuery}`;
     }
-    if (server === 2) {
+    if (server === 4) {
       return isSeries
         ? `https://multiembed.mov/?video_id=${idParam}&s=${season}&e=${episode}`
         : `https://multiembed.mov/?video_id=${idParam}`;
     }
-    if (server === 3) {
+    if (server === 5) {
       return isSeries
         ? `https://www.2embed.cc/embedtv/${idParam}&s=${season}&e=${episode}`
         : `https://www.2embed.cc/embed/${idParam}`;
-    }
-    if (server === 4) {
-      return isSeries
-        ? `https://vidlink.pro/tv/${idParam}/${season}/${episode}`
-        : `https://vidlink.pro/movie/${idParam}`;
     }
     if (detail.trailer) {
       const base = detail.trailer.includes('embed')
@@ -196,7 +224,226 @@ export default function PlayerModal({
     );
   };
 
+  const handleToggleDocPiP = async () => {
+    if (pipWindowRef.current) {
+      try {
+        pipWindowRef.current.close();
+      } catch (_) {}
+      pipWindowRef.current = null;
+      setPipWindow(null);
+      return;
+    }
+
+    if (typeof window === 'undefined' || !('documentPictureInPicture' in window)) {
+      setIsMiniPiP(true);
+      setPipNotice('Browser Anda tidak mendukung Document PiP Pop-out. Mode PiP Mini di web telah diaktifkan.');
+      setTimeout(() => setPipNotice(null), 5000);
+      return;
+    }
+
+    try {
+      const win = await window.documentPictureInPicture.requestWindow({
+        width: 720,
+        height: 405,
+      });
+
+      const style = win.document.createElement('style');
+      style.textContent = `
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          margin: 0;
+          padding: 0;
+          background: #07090e;
+          color: #f8fafc;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          overflow: hidden;
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .pip-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          width: 100vw;
+          overflow: hidden;
+        }
+        .pip-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+          background: #0b0e18;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          font-size: 11px;
+          user-select: none;
+          gap: 8px;
+        }
+        .pip-header-title {
+          font-weight: 700;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          color: #f8fafc;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .pip-badge {
+          background: #e50914;
+          color: #fff;
+          font-size: 9px;
+          font-weight: 800;
+          padding: 2px 5px;
+          border-radius: 3px;
+        }
+        .pip-restore-btn {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f8fafc;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+          padding: 4px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .pip-restore-btn:hover {
+          background: #e50914;
+          border-color: #e50914;
+          color: #fff;
+        }
+        .pip-body {
+          flex: 1;
+          position: relative;
+          background: #000;
+          width: 100%;
+          height: 100%;
+        }
+        .pip-body iframe {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          border: none;
+        }
+      `;
+      win.document.head.appendChild(style);
+      win.document.title = `${detail.title} - IDLIX PiP`;
+
+      win.addEventListener('pagehide', () => {
+        pipWindowRef.current = null;
+        setPipWindow(null);
+      });
+
+      pipWindowRef.current = win;
+      setPipWindow(win);
+      setIsMiniPiP(false);
+    } catch (err) {
+      console.error('Gagal membuka Document PiP:', err);
+      setIsMiniPiP(true);
+      setPipNotice('Tidak dapat membuka jendela PiP. Mengaktifkan Mode PiP Mini di web.');
+      setTimeout(() => setPipNotice(null), 5000);
+    }
+  };
+
   const activeSeasonObj = detail.seasons?.find((s) => s.seasonNumber === season);
+
+  if (isMiniPiP) {
+    return (
+      <>
+        <div className="modal-pip-floating">
+          <div className="modal-pip-header">
+            <div className="modal-pip-title" title={detail.title}>
+              <span className="pip-live-dot" />
+              <span className="pip-title-text">
+                {detail.title} {isSeries ? `(S${season}E${episode})` : ''}
+              </span>
+            </div>
+            <div className="modal-pip-actions">
+              <button
+                type="button"
+                className="modal-pip-btn"
+                title="Picture-in-Picture Pop-out (OS)"
+                onClick={handleToggleDocPiP}
+              >
+                🖼️
+              </button>
+              <button
+                type="button"
+                className="modal-pip-btn"
+                title="Perbesar Layar Penuh"
+                onClick={() => setIsMiniPiP(false)}
+              >
+                🗖
+              </button>
+              <button
+                type="button"
+                className="modal-pip-btn modal-pip-close"
+                title="Tutup Pemutar"
+                onClick={onClose}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="modal-pip-player">
+            <iframe
+              key={`mini-${server}-${season}-${episode}-${subLang}-${reloadKey}`}
+              src={getEmbedUrl()}
+              allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+              allowFullScreen
+            />
+          </div>
+
+          <div className="modal-pip-footer">
+            <span className="modal-pip-server-tag">
+              ⚡ Server {server} • {subLang !== 'off' ? `Sub ${subLang.toUpperCase()}` : 'No Sub'}
+            </span>
+            <button
+              type="button"
+              className="modal-pip-expand-link"
+              onClick={() => setIsMiniPiP(false)}
+            >
+              Perbesar & Episode ↗
+            </button>
+          </div>
+        </div>
+
+        {pipWindow &&
+          createPortal(
+            <div className="pip-container">
+              <div className="pip-header">
+                <div className="pip-header-title">
+                  <span className="pip-badge">IDLIX PiP</span>
+                  <span>
+                    {detail.title} {isSeries ? `(S${season}E${episode})` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="pip-restore-btn"
+                  onClick={() => pipWindow.close()}
+                  title="Kembalikan pemutar ke tab browser"
+                >
+                  🗖 Kembali ke Web
+                </button>
+              </div>
+              <div className="pip-body">
+                <iframe
+                  key={`pip-${server}-${season}-${episode}-${subLang}-${reloadKey}`}
+                  src={getEmbedUrl()}
+                  allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+                  allowFullScreen
+                />
+              </div>
+            </div>,
+            pipWindow.document.body
+          )}
+      </>
+    );
+  }
 
   return (
     <div
@@ -206,9 +453,32 @@ export default function PlayerModal({
       }}
     >
       <div className="modal-container">
-        <button className="modal-close-btn" onClick={onClose} title="Tutup">
-          ✕
-        </button>
+        <div className="modal-window-controls">
+          <button
+            type="button"
+            className="modal-ctrl-btn"
+            onClick={() => setIsMiniPiP(true)}
+            title="Kecilkan ke pojok kanan bawah web agar bisa jelajahi film lain"
+          >
+            🗕 <span className="ctrl-text">Mode Mini</span>
+          </button>
+          <button
+            type="button"
+            className="modal-ctrl-btn"
+            onClick={handleToggleDocPiP}
+            title="Picture-in-Picture Pop-out (Terapung di luar browser)"
+          >
+            🖼️ <span className="ctrl-text">PiP Pop-out</span>
+          </button>
+          <button
+            type="button"
+            className="modal-ctrl-btn modal-ctrl-close"
+            onClick={onClose}
+            title="Tutup (Esc)"
+          >
+            ✕
+          </button>
+        </div>
 
         {/* Video Player */}
         <div className="modal-player-wrap">
@@ -218,11 +488,12 @@ export default function PlayerModal({
                 SERVER:
               </span>
               {[
-                { id: 1, label: '⚡ Server 1 (VidSrc.sh)' },
-                { id: 2, label: '🌐 Server 2 (MultiEmbed)' },
-                { id: 3, label: '🚀 Server 3 (2Embed)' },
-                { id: 4, label: '✨ Server 4 (VidLink)' },
-                { id: 5, label: '🎬 Trailer' },
+                { id: 1, label: '⚡ Server 1 (NontonGo)' },
+                { id: 2, label: '🌐 Server 2 (VidFast)' },
+                { id: 3, label: '🚀 Server 3 (VidSrc.sh)' },
+                { id: 4, label: '✨ Server 4 (MultiEmbed)' },
+                { id: 5, label: '🎞️ Server 5 (2Embed)' },
+                { id: 6, label: '🎬 Trailer' },
               ].map((s) => (
                 <button
                   key={s.id}
@@ -281,14 +552,47 @@ export default function PlayerModal({
             </span>
           </div>
 
-          <div ref={playerBoxRef} className="player-aspect">
-            <iframe
-              key={`${server}-${season}-${episode}-${subLang}-${reloadKey}`}
-              src={getEmbedUrl()}
-              allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-              allowFullScreen
-            />
-          </div>
+          {pipWindow ? (
+            <div className="pip-active-placeholder">
+              <div className="pip-placeholder-icon">🖼️</div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 6 }}>
+                Sedang Diputar di Jendela Picture-in-Picture (PiP)
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 14, maxWidth: 440 }}>
+                Video melayang di atas semua aplikasi desktop. Anda dapat menonton sambil bekerja atau membuka aplikasi lain.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => pipWindow.close()}
+                  style={{ fontSize: '0.82rem', padding: '7px 16px' }}
+                >
+                  🗖 Kembalikan Pemutar ke Web
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    pipWindow.close();
+                    setIsMiniPiP(true);
+                  }}
+                  style={{ fontSize: '0.82rem', padding: '7px 16px' }}
+                >
+                  🗕 Pindah ke Mini PiP Web
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div ref={playerBoxRef} className="player-aspect">
+              <iframe
+                key={`${server}-${season}-${episode}-${subLang}-${reloadKey}`}
+                src={getEmbedUrl()}
+                allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+                allowFullScreen
+              />
+            </div>
+          )}
         </div>
 
         {/* Detail Content */}
@@ -329,6 +633,34 @@ export default function PlayerModal({
                   ⛶ Layar Penuh
                 </button>
                 <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '8px 16px',
+                    borderColor: 'rgba(139, 92, 246, 0.4)',
+                    color: '#c084fc',
+                  }}
+                  onClick={handleToggleDocPiP}
+                  title="Picture-in-Picture Pop-out (Jendela terapung di luar browser)"
+                >
+                  🖼️ PiP Pop-out
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '8px 16px',
+                    borderColor: 'rgba(16, 185, 129, 0.4)',
+                    color: '#6ee7b7',
+                  }}
+                  onClick={() => setIsMiniPiP(true)}
+                  title="Kecilkan pemutar ke pojok kanan bawah agar bisa jelajahi web"
+                >
+                  🗕 Mode Mini (PiP Web)
+                </button>
+                <button
                   className="btn btn-secondary"
                   style={{ fontSize: '0.85rem', padding: '8px 18px', borderColor: 'rgba(6, 182, 212, 0.4)', color: '#38bdf8' }}
                   onClick={handleCastToTv}
@@ -365,6 +697,13 @@ export default function PlayerModal({
                   ↗️ Tab Baru
                 </a>
               </div>
+
+              {pipNotice && (
+                <div className="pip-toast-banner">
+                  <span>💡 {pipNotice}</span>
+                  <button type="button" onClick={() => setPipNotice(null)}>✕</button>
+                </div>
+              )}
 
               {/* Watch Timestamp & Last Minute Marker */}
               {onUpdateProgress && (
@@ -508,6 +847,37 @@ export default function PlayerModal({
           </div>
         </div>
       </div>
+
+      {pipWindow &&
+        createPortal(
+          <div className="pip-container">
+            <div className="pip-header">
+              <div className="pip-header-title">
+                <span className="pip-badge">IDLIX PiP</span>
+                <span>
+                  {detail.title} {isSeries ? `(S${season}E${episode})` : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="pip-restore-btn"
+                onClick={() => pipWindow.close()}
+                title="Kembalikan pemutar ke tab browser"
+              >
+                🗖 Kembali ke Web
+              </button>
+            </div>
+            <div className="pip-body">
+              <iframe
+                key={`pip-${server}-${season}-${episode}-${subLang}-${reloadKey}`}
+                src={getEmbedUrl()}
+                allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+                allowFullScreen
+              />
+            </div>
+          </div>,
+          pipWindow.document.body
+        )}
     </div>
   );
 }
