@@ -146,13 +146,13 @@ export default function PlayerModal({
 
     if (server === 1) {
       return isSeries
-        ? `https://nontongo.win/embed/tv/${idParam}/${season}/${episode}`
-        : `https://nontongo.win/embed/movie/${idParam}`;
+        ? `https://vidlink.pro/tv/${idParam}/${season}/${episode}?primaryColor=e50914&autoplay=true`
+        : `https://vidlink.pro/movie/${idParam}?primaryColor=e50914&autoplay=true`;
     }
     if (server === 2) {
       return isSeries
-        ? `https://vidfast.vc/tv/${idParam}/${season}/${episode}`
-        : `https://vidfast.vc/movie/${idParam}`;
+        ? `https://vidfast.vc/tv/${idParam}/${season}/${episode}?autoPlay=true`
+        : `https://vidfast.vc/movie/${idParam}?autoPlay=true`;
     }
     if (server === 3) {
       return isSeries
@@ -161,8 +161,8 @@ export default function PlayerModal({
     }
     if (server === 4) {
       return isSeries
-        ? `https://multiembed.mov/?video_id=${idParam}&s=${season}&e=${episode}`
-        : `https://multiembed.mov/?video_id=${idParam}`;
+        ? `https://nontongo.win/embed/tv/${idParam}/${season}/${episode}`
+        : `https://nontongo.win/embed/movie/${idParam}`;
     }
     if (server === 5) {
       return isSeries
@@ -489,11 +489,11 @@ export default function PlayerModal({
                 SERVER:
               </span>
               {[
-                { id: 1, label: '⚡ Server 1 (NontonGo)' },
-                { id: 2, label: '🌐 Server 2 (VidFast)' },
-                { id: 3, label: '🚀 Server 3 (VidSrc.sh)' },
-                { id: 4, label: '✨ Server 4 (MultiEmbed)' },
-                { id: 5, label: '🎞️ Server 5 (2Embed)' },
+                { id: 1, label: '⚡ 4K/HD • VidLink' },
+                { id: 2, label: '🌐 1080p • VidFast' },
+                { id: 3, label: '🚀 VidSrc.sh' },
+                { id: 4, label: '🇮🇩 NontonGo' },
+                { id: 5, label: '🎞️ 2Embed' },
                 { id: 6, label: '🎬 Trailer' },
               ].map((s) => (
                 <button
@@ -505,10 +505,16 @@ export default function PlayerModal({
                 </button>
               ))}
             </div>
-            <div className="player-status-tag">
+            <button
+              type="button"
+              className="player-status-tag"
+              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => handleServerChange(1)}
+              title="Prioritas Resolusi 4K / 1080p (Server VidLink)"
+            >
               <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-              <span>Player Aktif</span>
-            </div>
+              <span>{server === 1 ? '4K / HD Prioritas' : 'Pilih Mode 4K'}</span>
+            </button>
           </div>
 
           {/* Dub & Subtitle Bar (toggled on mobile via Opsi) */}
