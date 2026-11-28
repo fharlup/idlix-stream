@@ -498,6 +498,259 @@ body {
 
 .modal-close-btn:hover { background: var(--primary); }
 
+.modal-window-controls {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 25;
+}
+
+.modal-ctrl-btn {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--transition);
+  backdrop-filter: blur(8px);
+}
+
+.modal-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.modal-ctrl-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.modal-ctrl-close:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+@media (max-width: 600px) {
+  .modal-ctrl-btn span.ctrl-text {
+    display: none;
+  }
+  .modal-ctrl-btn {
+    padding: 6px 9px;
+  }
+}
+
+.pip-active-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  background: radial-gradient(circle at center, #151a2b 0%, #07090e 100%);
+  min-height: 300px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pip-placeholder-icon {
+  font-size: 2.75rem;
+  margin-bottom: 12px;
+  animation: pulseIcon 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.pip-toast-banner {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: #ddd6fe;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pip-toast-banner button {
+  background: none;
+  border: none;
+  color: #a78bfa;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* ── Floating Mini Player (In-Web PiP) ─────────────────────────────────── */
+.modal-pip-floating {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 9999;
+  overflow: hidden;
+  animation: pipSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pipSlideIn {
+  from {
+    transform: translateY(24px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-pip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #0b0e18;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+
+.modal-pip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.pip-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  flex-shrink: 0;
+}
+
+.pip-title-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-pip-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.modal-pip-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.modal-pip-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.modal-pip-btn.modal-pip-close:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.modal-pip-player {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  background: #000;
+}
+
+.modal-pip-player iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.modal-pip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #080a12;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+}
+
+.modal-pip-server-tag {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.modal-pip-expand-link {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-pip-expand-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+  .modal-pip-floating {
+    bottom: 76px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 .modal-player-wrap {
   position: relative;
   width: 100%;
@@ -1224,5 +1477,80 @@ body {
   }
   .account-header-btn {
     padding: 5px 8px;
+  }
+}
+
+/* ── Mobile Declutter & Collapsible Player Drawer ───────────────────────────── */
+.mobile-only-btn {
+  display: none;
+}
+
+.mobile-drawer {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .mobile-only-btn {
+    display: inline-flex;
+  }
+
+  .player-lang-bar.mobile-hidden {
+    display: none;
+  }
+
+  .mobile-drawer {
+    display: none;
+  }
+
+  .mobile-drawer.open {
+    display: block;
+  }
+
+  /* Clean Hero & Cards on Mobile (remove redundant badges) */
+  .hero-badge-row .badge-featured,
+  .hero-badge-row .badge-quality,
+  .media-card .badge-quality {
+    display: none;
+  }
+
+  .hero {
+    min-height: 290px;
+  }
+
+  .hero-content {
+    padding: 22px 14px;
+  }
+
+  .hero-badge-row {
+    margin-bottom: 10px;
+  }
+
+  .hero-title {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+  }
+
+  .hero-overview {
+    margin-bottom: 12px;
+  }
+
+  .filter-pill {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+  }
+
+  .modal-meta-row {
+    gap: 8px;
+    font-size: 0.78rem;
+    margin-bottom: 10px;
+  }
+
+  .genre-tags {
+    margin-bottom: 10px;
+  }
+
+  .modal-overview {
+    font-size: 0.86rem;
+    margin-bottom: 10px;
   }
 }

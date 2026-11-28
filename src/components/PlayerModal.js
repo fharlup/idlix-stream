@@ -43,6 +43,7 @@ export default function PlayerModal({
   const [isMiniPiP, setIsMiniPiP] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
   const [pipNotice, setPipNotice] = useState(null);
+  const [showMobileOptions, setShowMobileOptions] = useState(false);
   const pipWindowRef = useRef(null);
   const playerBoxRef = useRef(null);
   const fullscreenBtnRef = useRef(null);
@@ -510,8 +511,8 @@ export default function PlayerModal({
             </div>
           </div>
 
-          {/* Dub & Subtitle Bar */}
-          <div className="player-lang-bar">
+          {/* Dub & Subtitle Bar (toggled on mobile via Opsi) */}
+          <div className={`player-lang-bar ${showMobileOptions ? 'mobile-open' : 'mobile-hidden'}`}>
             <div className="lang-controls-group">
               <label className="lang-control">
                 <span>💬 Subtitle:</span>
@@ -623,62 +624,20 @@ export default function PlayerModal({
                 {detail.overview || 'Sinopsis tidak tersedia.'}
               </p>
 
-              <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   ref={fullscreenBtnRef}
                   className="btn btn-primary"
-                  style={{ fontSize: '0.85rem', padding: '8px 18px' }}
+                  style={{ fontSize: '0.85rem', padding: '8px 16px' }}
                   onClick={handleFullscreen}
                 >
                   ⛶ Layar Penuh
                 </button>
                 <button
-                  type="button"
                   className="btn btn-secondary"
                   style={{
                     fontSize: '0.85rem',
-                    padding: '8px 16px',
-                    borderColor: 'rgba(139, 92, 246, 0.4)',
-                    color: '#c084fc',
-                  }}
-                  onClick={handleToggleDocPiP}
-                  title="Picture-in-Picture Pop-out (Jendela terapung di luar browser)"
-                >
-                  🖼️ PiP Pop-out
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.85rem',
-                    padding: '8px 16px',
-                    borderColor: 'rgba(16, 185, 129, 0.4)',
-                    color: '#6ee7b7',
-                  }}
-                  onClick={() => setIsMiniPiP(true)}
-                  title="Kecilkan pemutar ke pojok kanan bawah agar bisa jelajahi web"
-                >
-                  🗕 Mode Mini (PiP Web)
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.85rem', padding: '8px 18px', borderColor: 'rgba(6, 182, 212, 0.4)', color: '#38bdf8' }}
-                  onClick={handleCastToTv}
-                >
-                  📺 Cast ke TV
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.85rem', padding: '8px 18px' }}
-                  onClick={() => setReloadKey((k) => k + 1)}
-                >
-                  🔄 Muat Ulang
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.85rem',
-                    padding: '8px 16px',
+                    padding: '8px 14px',
                     borderColor: isSaved ? 'rgba(229, 9, 20, 0.6)' : undefined,
                     color: isSaved ? '#fda4af' : undefined,
                   }}
@@ -686,79 +645,134 @@ export default function PlayerModal({
                 >
                   {isSaved ? '❤️ Tersimpan' : '🔖 Simpan'}
                 </button>
-                <a
-                  href={getEmbedUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.85rem', padding: '8px 16px', textDecoration: 'none' }}
-                  title="Buka player di tab baru jika verifikasi CAPTCHA butuh cookie langsung"
+                <button
+                  type="button"
+                  className="btn btn-secondary mobile-only-btn"
+                  style={{ fontSize: '0.85rem', padding: '8px 14px' }}
+                  onClick={() => setShowMobileOptions((prev) => !prev)}
                 >
-                  ↗️ Tab Baru
-                </a>
+                  {showMobileOptions ? '▲ Tutup Opsi' : '⚙️ Opsi'}
+                </button>
               </div>
 
-              {pipNotice && (
-                <div className="pip-toast-banner">
-                  <span>💡 {pipNotice}</span>
-                  <button type="button" onClick={() => setPipNotice(null)}>✕</button>
+              <div className={`mobile-drawer ${showMobileOptions ? 'open' : ''}`}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '7px 12px',
+                      borderColor: 'rgba(139, 92, 246, 0.4)',
+                      color: '#c084fc',
+                    }}
+                    onClick={handleToggleDocPiP}
+                    title="Picture-in-Picture Pop-out (Jendela terapung di luar browser)"
+                  >
+                    🖼️ PiP Pop-out
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '7px 12px',
+                      borderColor: 'rgba(16, 185, 129, 0.4)',
+                      color: '#6ee7b7',
+                    }}
+                    onClick={() => setIsMiniPiP(true)}
+                    title="Kecilkan pemutar ke pojok kanan bawah agar bisa jelajahi web"
+                  >
+                    🗕 Mode Mini
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '7px 12px', borderColor: 'rgba(6, 182, 212, 0.4)', color: '#38bdf8' }}
+                    onClick={handleCastToTv}
+                  >
+                    📺 Cast ke TV
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '7px 12px' }}
+                    onClick={() => setReloadKey((k) => k + 1)}
+                  >
+                    🔄 Muat Ulang
+                  </button>
+                  <a
+                    href={getEmbedUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '7px 12px', textDecoration: 'none' }}
+                    title="Buka player di tab baru jika verifikasi CAPTCHA butuh cookie langsung"
+                  >
+                    ↗️ Tab Baru
+                  </a>
                 </div>
-              )}
 
-              {/* Watch Timestamp & Last Minute Marker */}
-              {onUpdateProgress && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    onUpdateProgress(detail.slug, progressInput);
-                    setProgressSavedToast(true);
-                    setTimeout(() => setProgressSavedToast(false), 2000);
-                  }}
-                  style={{
-                    marginTop: 14,
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    {historyEntry?.watchedAt ? (
-                      <>
-                        🕒 Terakhir ditonton:{' '}
-                        <strong style={{ color: 'var(--text-primary)' }}>
-                          {new Date(historyEntry.watchedAt).toLocaleString('id-ID', {
-                            day: '2-digit',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </strong>
-                      </>
-                    ) : (
-                      <span>⏱️ Tandai menit terakhir ditonton:</span>
-                    )}
+                {pipNotice && (
+                  <div className="pip-toast-banner">
+                    <span>💡 {pipNotice}</span>
+                    <button type="button" onClick={() => setPipNotice(null)}>✕</button>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input
-                      type="text"
-                      className="account-input"
-                      style={{ width: 110, padding: '5px 8px', fontSize: '0.78rem' }}
-                      placeholder="mis. 42:15"
-                      value={progressInput}
-                      onChange={(e) => setProgressInput(e.target.value)}
-                    />
-                    <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '5px 10px' }}>
-                      {progressSavedToast ? '✓ Tersimpan' : 'Simpan Menit'}
-                    </button>
-                  </div>
-                </form>
-              )}
+                )}
+
+                {/* Watch Timestamp & Last Minute Marker */}
+                {onUpdateProgress && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      onUpdateProgress(detail.slug, progressInput);
+                      setProgressSavedToast(true);
+                      setTimeout(() => setProgressSavedToast(false), 2000);
+                    }}
+                    style={{
+                      marginTop: 12,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {historyEntry?.watchedAt ? (
+                        <>
+                          🕒 Terakhir ditonton:{' '}
+                          <strong style={{ color: 'var(--text-primary)' }}>
+                            {new Date(historyEntry.watchedAt).toLocaleString('id-ID', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </strong>
+                        </>
+                      ) : (
+                        <span>⏱️ Tandai menit terakhir ditonton:</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="text"
+                        className="account-input"
+                        style={{ width: 110, padding: '5px 8px', fontSize: '0.78rem' }}
+                        placeholder="mis. 42:15"
+                        value={progressInput}
+                        onChange={(e) => setProgressInput(e.target.value)}
+                      />
+                      <button type="submit" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '5px 10px' }}>
+                        {progressSavedToast ? '✓ Tersimpan' : 'Simpan Menit'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
 
               {castInfo && (
                 <div
